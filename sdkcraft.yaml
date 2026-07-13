@@ -1,0 +1,69 @@
+# Thin Juju CLI Workshop SDK.
+#
+# Ships ONLY the Juju CLI client as a prebuilt binary — no controller, no
+# credentials, no cloud configuration. It talks to a REMOTE Juju controller the
+# consumer registers/bootstraps at runtime. Optional SSH-agent access (for
+# `juju ssh`/`juju scp`/manual provisioning) is exposed as an opt-in plug.
+name: juju-cli
+# The version is adopted from the ./VERSION file at build time (see the `juju`
+# part's override-pull -> `craftctl set version`). VERSION is the single source
+# of truth; Renovate bumps it and the packed artifact follows.
+adopt-info: juju
+summary: The Juju CLI client, packaged as a thin Workshop SDK
+description: |
+  A thin Workshop SDK that installs the Juju CLI client from the official
+  GitHub release tarball. It ships only the `juju` executable — it does not run
+  a controller and carries no credentials or cloud config. Register or bootstrap
+  a controller at runtime. Tracks the stable 3.x series.
+# Juju is AGPL-3.0. The SDK packaging (this definition + hooks) is trivial glue
+# distributed under the same terms.
+license: AGPL-3.0
+platforms:
+  ubuntu@22.04:amd64:
+  ubuntu@24.04:amd64:
+  ubuntu@24.04:arm64:
+
+parts:
+  juju:
+    # Juju ships prebuilt client tarballs on GitHub releases, so we download +
+    # unpack rather than build from source (and avoid nested snapd in the base).
+    # override-pull reads the pinned version from ./VERSION (Renovate's bump
+    # target) and `craftctl set version` adopts it — keeping VERSION the single
+    # source of truth. CRAFT_ARCH_BUILD_FOR (amd64/arm64) matches juju's
+    # linux-<arch> asset. The client tarball bundles a few helper binaries; we
+    # prime ONLY `juju` to stay thin.
+    plugin: dump
+    source: . # placeholder — override-pull replaces the fetch step entirely
+    build-packages:
+      - xz-utils # extract juju's .tar.xz in override-pull (no native dump fetch)
+    override-pull: |
+      VERSION="$(cat "${CRAFT_PROJECT_DIR}/VERSION")"
+      craftctl set version="${VERSION}"
+      curl -fsSL -o "${CRAFT_PART_SRC}/juju.tar.xz" \
+        "https://github.com/juju/juju/releases/download/v${VERSION}/juju-${VERSION}-linux-${CRAFT_ARCH_BUILD_FOR}.tar.xz"
+      cd "${CRAFT_PART_SRC}"
+      tar -xJf juju.tar.xz
+      rm -f juju.tar.xz
+    organize:
+      # The tarball holds a bare `juju` at its root; move it under bin/ so
+      # setup-base can add a single, predictable directory to PATH.
+      juju: bin/juju
+    prime:
+      # Ship ONLY the client binary — drop the bundled helpers and source files.
+      - bin/juju
+
+plugs:
+  # Reach machines with `juju ssh`/`juju scp`/`juju debug-hooks` and do manual
+  # cloud provisioning using the host's ssh-agent. Opt-in: the ssh-agent
+  # interface never auto-connects, so the consumer wires it explicitly with
+  # `workshop connect <workshop>/juju-cli:ssh-agent`.
+  ssh-agent:
+    interface: ssh-agent
+
+# No mount plug is declared for Juju's data directory (~/.local/share/juju),
+# which holds controller endpoints, accounts, and CREDENTIALS/macaroons. A mount
+# always auto-connects (no per-plug opt-out), so shipping one would persist Juju
+# credentials onto a host directory by default — a leak risk. Keeping that data
+# local to the ephemeral workshop preserves isolation; a consumer who wants it
+# to survive a rebuilding refresh can graft a mount at that path in their own
+# workshop.yaml (see README, "Controller data persistence").

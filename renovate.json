@@ -1,0 +1,30 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "enabledManagers": ["custom.regex"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Bump the pinned Juju version in VERSION from upstream GitHub releases.",
+      "managerFilePatterns": ["/^VERSION$/"],
+      "matchStrings": ["(?<currentValue>[0-9.]+)"],
+      "depNameTemplate": "juju/juju",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.+)$",
+      "versioningTemplate": "semver"
+    }
+  ],
+  "baseBranchPatterns": ["3", "4"],
+  "packageRules": [
+    {
+      "matchPackageNames": ["juju/juju"],
+      "matchBaseBranches": ["3"],
+      "allowedVersions": "/^3\\./"
+    },
+    {
+      "matchPackageNames": ["juju/juju"],
+      "matchBaseBranches": ["4"],
+      "allowedVersions": "/^4\\./"
+    }
+  ]
+}

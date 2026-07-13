@@ -1,0 +1,4 @@
+name: juju-scratch
+base: ubuntu@24.04
+sdks:
+  - name: try-juju-cli

@@ -1,0 +1,6 @@
+summary: juju SDK installs and reports a version
+
+execute: |
+  workshop launch --verbose --wait-on-error
+  workshop info | grep -E 'status:\s+okay'
+  workshop exec -- bash -lc 'juju version' | grep -E '^3\.'

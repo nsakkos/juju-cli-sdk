@@ -1,0 +1,30 @@
+name: Build and Upload SDK
+
+on:
+  push:
+    branches:
+      # Publish from a major-only version branch (e.g. "3" -> Store track "3",
+      # "4" -> Store track "4"). juju ships two parallel lines: 3.6.x (mature,
+      # fixes only) and 4.0.x (new features, breaking changes).
+      - "[0-9]+"
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch name (e.g., 3)"
+        required: true
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-upload:
+    uses: canonical/sdkcraft-actions/.github/workflows/upload.yml@main
+    with:
+      # Multi-base SDK (several ubuntu@ entries in platforms), so enumerate each
+      # base:arch and use the --platform flag.
+      platforms: '["ubuntu@22.04:amd64","ubuntu@24.04:amd64","ubuntu@24.04:arm64"]'
+      platform-flag: "--platform"
+    secrets:
+      SDKCRAFT_STORE_CREDENTIALS: ${{ secrets.SDKCRAFT_STORE_CREDENTIALS }}
